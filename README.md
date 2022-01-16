@@ -1,4 +1,4 @@
-== sort cpp includes
+## sort cpp includes
 
 Got tired from holywars on includes order in a C++ project?
 With sort-cpp-includes you can end the war!
@@ -7,7 +7,7 @@ according to simple grouping rules provided by the user.
 You can create different rulesets for multiple projects
 according to the local policy.
 
-== Installation
+## Installation
 
 Install for all users:
 ```(python)
@@ -19,9 +19,8 @@ Or install for a single user:
 pip install --user sort-cpp-headers
 ```
 
-== Usage
-
+## Usage
+TODO:
 Simple run
-
 collisions
 
