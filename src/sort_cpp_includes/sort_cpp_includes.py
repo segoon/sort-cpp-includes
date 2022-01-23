@@ -52,6 +52,10 @@ def adjust_cc_command(command: CCEntry) -> typing.List[str]:
     i = 0
     while i < len(command_items):
         item = command_items[i]
+
+        # TODO: Handle quotes
+
+        # print(f'item: "{item}"')
         if item == '-c':
             command_items = command_items[:i] + command_items[i + 2 :]
             break
@@ -460,6 +464,8 @@ def write_includes(
             ofile.write('\n')
 
 
+# The cache of a long 'cc ...' command output
+# dictionary: cmdline_string -> file path
 class RealpathCache:
     def __init__(self):
         self.cache: dict = {}
@@ -487,6 +493,7 @@ def include_realpath_cached(
 
     result = include_realpath(source_filepath, include_line, compile_commands)
     if result:
+        # print(f'result = {result}')
         # print('miss', include_line)
         realpath_cache.set(key, result)
     return result
@@ -767,6 +774,8 @@ def main():
     include_map = IncludeMap(data={})
 
     headers = collect_all_files(args.paths, suffixes + hpp_suffixes)
+
+    # process .cpp
     for hdr in headers:
         if has_suffix(hdr, suffixes):
             handle_single_file(
@@ -779,6 +788,7 @@ def main():
                 include_map,
             )
 
+    # process .hpp
     for hdr in headers:
         if has_suffix(hdr, hpp_suffixes):
             abs_path = os.path.abspath(hdr)
