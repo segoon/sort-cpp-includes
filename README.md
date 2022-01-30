@@ -51,3 +51,4 @@ your source files.
   at least once.
 * sort-cpp-includes was tested on clang only, so sorting with alternative compilers
   might not work as expected.
+* only a single thread is used, but we could utilize more
