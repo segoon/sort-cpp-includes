@@ -2,6 +2,7 @@
 
 import argparse
 import dataclasses
+import shlex
 import json
 import os
 import re
@@ -19,7 +20,7 @@ def read_file_contents(path: str) -> str:
 @dataclasses.dataclass
 class CCEntry:
     directory: str
-    command: str
+    command: typing.List[str]
     file_path: str
 
 
@@ -30,13 +31,22 @@ class Include:
     real_path: str  # e.g. '/usr/include/stdio.h'
 
 
+# Handle special symbols like quotes
+def command_to_cmdline(command):
+    s = shlex.shlex(command, posix=True)
+    s.whitespace_split = True
+    args = list(s)
+    return args
+
+
 def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
     compile_commands_raw = read_file_contents(path)
     compile_commands_json = json.loads(compile_commands_raw)
+
     compile_commands = {
         entry['file']: CCEntry(
             directory=entry['directory'],
-            command=entry['command'],
+            command=command_to_cmdline(entry['command']),
             file_path=entry['file'],
         )
         for entry in compile_commands_json
@@ -45,7 +55,7 @@ def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
 
 
 def adjust_cc_command(command: CCEntry) -> typing.List[str]:
-    command_items = command.command.split(' ')  # TODO: spaces might be escaped
+    command_items = command.command
     command_items.remove('')
 
     # Read the code from stdin instead of <some>.cpp
@@ -53,9 +63,6 @@ def adjust_cc_command(command: CCEntry) -> typing.List[str]:
     while i < len(command_items):
         item = command_items[i]
 
-        # TODO: Handle quotes
-
-        # print(f'item: "{item}"')
         if item == '-c':
             command_items = command_items[:i] + command_items[i + 2 :]
             break
@@ -84,12 +91,10 @@ def is_include_or_empty(string: str) -> bool:
 
 
 def extract_file_relpath(line: str) -> str:
-    # print(f'extract_file_relpath({line})')
     res = re.match(r'^\s*#include\s*(\<[^>]*\>|\"[^"]*\")', line)
     if res:
         # "file.hpp" -> file.hpp
         value = res.group(1)[1:-1]
-        # print(value)
         return value
 
     raise Exception(f'Bad include format, I don\'t know to process it: {line}')
@@ -320,7 +325,7 @@ class MatcherRe(Matcher):
         self.regex = re.compile(regex_str)
 
     def is_match(self, path: str, orig_path: str, my_filename: str) -> bool:
-        return self.regex.match(path) is not None
+        return self.regex.full_match(path) is not None
 
 
 class MatcherHardcoded(Matcher):
@@ -389,7 +394,6 @@ def select_pair_header(
         min_len = min(len(inc_parts), len(my_filepath_parts))
         score = 0
 
-        # print(f'{inc_parts} {my_filename_wo_extention}')
         if remove_extention(inc_parts[-1]) != my_filename_wo_extention:
             continue
 
@@ -414,7 +418,6 @@ def sort_includes(
     if config.has_pair_header:
         pair_header = select_pair_header(includes, my_filename)
 
-    # match = None
     for inc in includes:
         line = inc.include_line
 
@@ -423,9 +426,7 @@ def sort_includes(
             match = None
             for matcher in matchers:
                 if isinstance(matcher, MatcherPairHeader) and pair_header:
-                    # print(f'checking pair: {inc}')
                     if inc.orig_path == pair_header.orig_path:
-                        # print(f'match pair! i = {i}')
                         match = True
                         break
                 match = matcher.is_match(
@@ -433,10 +434,8 @@ def sort_includes(
                 )
                 # The first match wins
                 if match:
-                    # print(f'{line} -> {inc.real_path} (group #{i})')
                     break
             if match:
-                # print(f'Append "{inc}" to i={i}')
                 res[i].append(line)
                 break
 
@@ -489,14 +488,10 @@ def include_realpath_cached(
     key = (include_line, ' '.join(compile_commands), directory)
     entry = realpath_cache.find(key)
     if entry:
-        # print('hit ', include_line)
         return entry
 
     result = include_realpath(source_filepath, include_line, compile_commands)
-    # print(f'include_realpath("{source_filepath}", "{include_line}", compile_commandsj) -> "{result}"')
     if result:
-        # print(f'result = {result}')
-        # print('miss', include_line)
         realpath_cache.set(key, result)
     return result
 
@@ -535,18 +530,8 @@ def include_realpath(
             sys.stderr.write(err.decode('utf-8'))
             raise Exception('Compilation attempt failed, see stderr')
 
-        # TODO: remove
-        # for line in out.decode('utf-8').split('\n'):
-        #     print(line)
-
         result = None
         for line in out.decode('utf-8').split('\n'):
-            # if not line:
-            #     raise Exception(
-            #         f'Header not found ({include_line}), '
-            #         f'broken compile_commands.json?',
-            #     )
-
             if not line.startswith('#'):
                 continue
 
@@ -562,11 +547,6 @@ def include_realpath(
                 result = line
                 proc.kill()
                 return result
-            # print(line)
-
-        # if result is not None:
-        #     proc.kill()
-        #     return result
 
     raise Exception(
         f'Header not found ({include_line}), '
@@ -675,7 +655,6 @@ def do_handle_single_file(
         )
 
         orig_path = extract_file_relpath(line)
-        # print(f'Include(include_line={line}, orig_path={orig_path}, real_path={abs_include})')
         includes.append(
             Include(
                 include_line=line, orig_path=orig_path, real_path=abs_include,
@@ -687,7 +666,6 @@ def do_handle_single_file(
     assert i != -1
 
     sorted_includes = sort_includes(includes, filename, config)
-    # print(sorted_includes)
 
     tmp_filename = filename + '.tmp'
     with open(tmp_filename, 'w') as ofile:
@@ -784,7 +762,10 @@ def main():
         ),
     )
     args = parser.parse_args()
+    process(args)
 
+
+def process(args):
     suffixes = args.cpp_suffixes.split(',')
     hpp_suffixes = args.hpp_suffixes.split(',')
     realpath_cache = RealpathCache()
