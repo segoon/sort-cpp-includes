@@ -59,15 +59,16 @@ def check(tmp_path):
         with open(input_fname, 'r') as ifile:
             contents = ifile.read()
 
-        print(contents)
-        print(expected_output)
-        assert contents == expected_output
+        # print(contents)
+        # print(expected_output)
+        assert contents.strip() == expected_output.strip()
 
     return _check
 
 
-def test_empty(tmp_path, check):
-    input_cpp="""#include <iostream>
+def test_one_group(tmp_path, check):
+    input_cpp="""
+#include <iostream>
 #include <atomic>
 #include <cstdio>
 """
@@ -75,10 +76,46 @@ def test_empty(tmp_path, check):
     expected_output="""#include <atomic>
 #include <cstdio>
 #include <iostream>
+
 """
 
     rules = {
             'rules': [
+                {'matchers': [
+                    {'regex': '.*'},
+                    ],
+                    },
+                ],
+            }
+    check(input_cpp, expected_output, rules)
+
+
+def test_multiple_groups(tmp_path, check):
+    input_cpp="""
+#include <iostream>
+#include <time.h>
+#include <atomic>
+#include <locale.h>
+#include <cstdio>
+#include <stdio.h>
+#include <signal.h>
+"""
+
+    expected_output="""
+#include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <time.h>
+
+#include <atomic>
+#include <cstdio>
+#include <iostream>
+"""
+
+    rules = {
+            'rules': [
+        {'matchers': [{'virtual': '@std-c'}]},
+        {'matchers': [{'virtual': '@std-cpp'}]},
                 {'matchers': [
                     {'regex': '.*'},
                     ],

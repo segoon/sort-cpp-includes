@@ -425,11 +425,13 @@ def sort_includes(
                 if match:
                     break
             if match:
+                # print(f'write {line}')
                 res[i].append(line)
                 break
 
         if not match:
             raise Exception(f'Include "{line}" doesn\'t match any pattern')
+    # print(res)
 
     for group in res:
         group.sort(key=lambda x: (not x.endswith('.h>'), x))
@@ -662,7 +664,7 @@ def do_handle_single_file(
             ofile.write('#pragma once\n\n')
         write_includes(sorted_includes, ofile)
 
-        for line in orig_file_contents[i:]:
+        for line in orig_file_contents[i+1:]:
             ofile.write(line)
             ofile.write('\n')
     os.rename(src=tmp_filename, dst=filename)
