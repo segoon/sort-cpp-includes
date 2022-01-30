@@ -499,7 +499,8 @@ def include_realpath(
         include_line: str,
         compile_commands: typing.Dict[str, CCEntry],
 ) -> str:
-    filepath = os.path.abspath(source_filepath)
+    filepath = os.path.abspath(filepath)
+    source_filepath = os.path.abspath(source_filepath)
 
     directory = os.path.dirname(filepath)
     tmp = tempfile.NamedTemporaryFile(suffix='.cpp', dir=directory)
@@ -508,10 +509,10 @@ def include_realpath(
     tmp.write('\n'.encode())
     tmp.flush()
 
-    command = compile_commands.get(filepath)
+    command = compile_commands.get(source_filepath)
     if not command:
         raise Exception(
-            f'Failed to find "{filepath}" in compile_commands.json',
+            f'Failed to find "{source_filepath}" in compile_commands.json',
         )
     command_items = adjust_cc_command(command) + [tmp_name]
 
@@ -711,7 +712,7 @@ def collect_all_files(
         elif os.path.isdir(filepath):
             for header in collect_files(filepath, suffixes):
                 headers.append(header)
-    print(f'Collected {len(headers)} files.')
+    print(f'Collected files.')
     return headers
 
 
