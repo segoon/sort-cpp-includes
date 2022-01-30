@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import typing
+import yaml
 
 
 def read_file_contents(path: str) -> str:
@@ -40,6 +41,8 @@ def command_to_cmdline(command):
 
 
 def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
+    print('Loading compile_commands.json...')
+
     compile_commands_raw = read_file_contents(path)
     compile_commands_json = json.loads(compile_commands_raw)
 
@@ -51,6 +54,8 @@ def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
         )
         for entry in compile_commands_json
     }
+
+    print('compile_commands.json is loaded.')
     return compile_commands
 
 
@@ -664,7 +669,7 @@ def do_handle_single_file(
             ofile.write('#pragma once\n\n')
         write_includes(sorted_includes, ofile)
 
-        for line in orig_file_contents[i+1:]:
+        for line in orig_file_contents[i + 1 :]:
             ofile.write(line)
             ofile.write('\n')
     os.rename(src=tmp_filename, dst=filename)
@@ -676,7 +681,7 @@ def read_config(filepath: typing.Optional[str]) -> Config:
         return Config(DEFAULT_RULES)
 
     with open(filepath, 'r') as ifile:
-        contents = json.load(ifile)
+        contents = yaml.safe_load(ifile)
         print(f'loaded {filepath} rule set')
         return Config(contents)
 
@@ -695,6 +700,7 @@ def collect_files(
 def collect_all_files(
         paths: typing.List[str], suffixes: typing.List[str],
 ) -> typing.List[str]:
+    print('Collecting input files...')
     headers = []
     for filepath in paths:
         if os.path.isfile(filepath):
@@ -702,6 +708,7 @@ def collect_all_files(
         elif os.path.isdir(filepath):
             for header in collect_files(filepath, suffixes):
                 headers.append(header)
+    print(f'Collected {len(headers)} files.')
     return headers
 
 
