@@ -346,16 +346,6 @@ DEFAULT_RULES = {
         {'matchers': [{'virtual': '@std-c'}]},
         {'matchers': [{'virtual': '@std-cpp'}]},
         {'matchers': [{'regex': '/usr/include/.*'}]},
-        {
-            'matchers': [
-                {'regex': '.*/third_party/.*'},
-                {'regex': '.*/google-benchmark/.*'},
-            ],
-        },
-        {'matchers': [{'regex': '.*/userver/.*'}]},
-        {'matchers': [{'regex': '.*/build/.*'}]},
-        {'matchers': [{'regex': '.*/libraries/.*'}]},
-        {'matchers': [{'regex': '.*/services/.*'}]},
     ],
 }
 
