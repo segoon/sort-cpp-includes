@@ -477,6 +477,7 @@ class RealpathCache:
         self.cache[key] = value
 
 
+# Returns the absolute path of a header from 'include_line'
 def include_realpath_cached(
         source_filepath: str,
         include_line: str,
@@ -492,6 +493,7 @@ def include_realpath_cached(
         return entry
 
     result = include_realpath(source_filepath, include_line, compile_commands)
+    # print(f'include_realpath("{source_filepath}", "{include_line}", compile_commandsj) -> "{result}"')
     if result:
         # print(f'result = {result}')
         # print('miss', include_line)
@@ -533,22 +535,38 @@ def include_realpath(
             sys.stderr.write(err.decode('utf-8'))
             raise Exception('Compilation attempt failed, see stderr')
 
+        # TODO: remove
+        # for line in out.decode('utf-8').split('\n'):
+        #     print(line)
+
+        result = None
         for line in out.decode('utf-8').split('\n'):
-            if not line:
-                raise Exception(
-                    f'Header not found ({include_line}), '
-                    f'broken compile_commands.json?',
-                )
+            # if not line:
+            #     raise Exception(
+            #         f'Header not found ({include_line}), '
+            #         f'broken compile_commands.json?',
+            #     )
+
+            if not line.startswith('#'):
+                continue
 
             if '/' not in line or tmp_name in line:
                 continue
 
-            # The first line with '/' is our file's full path
+            # The first line with '/' is our file's full path.
+            # Example:
+            # 1 "/home/segoon/projects/taxi/userver/submodules/googletest/googletest/include/gtest/gtest.h" 1 3
             line = line.split('"', 2)[1]
             line = os.path.realpath(line)
+            if result is None:
+                result = line
+                proc.kill()
+                return result
+            # print(line)
 
-            proc.kill()
-            return line
+        # if result is not None:
+        #     proc.kill()
+        #     return result
 
     raise Exception(
         f'Header not found ({include_line}), '
@@ -657,6 +675,7 @@ def do_handle_single_file(
         )
 
         orig_path = extract_file_relpath(line)
+        # print(f'Include(include_line={line}, orig_path={orig_path}, real_path={abs_include})')
         includes.append(
             Include(
                 include_line=line, orig_path=orig_path, real_path=abs_include,
