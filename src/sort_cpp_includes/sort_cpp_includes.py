@@ -474,6 +474,7 @@ class RealpathCache:
 
 # Returns the absolute path of a header from 'include_line'
 def include_realpath_cached(
+        filepath: str,
         source_filepath: str,
         include_line: str,
         compile_commands: typing.Dict[str, CCEntry],
@@ -486,20 +487,21 @@ def include_realpath_cached(
     if entry:
         return entry
 
-    result = include_realpath(source_filepath, include_line, compile_commands)
+    result = include_realpath(filepath, source_filepath, include_line, compile_commands)
     if result:
         realpath_cache.set(key, result)
     return result
 
 
 def include_realpath(
+        filepath: str,
         source_filepath: str,
         include_line: str,
         compile_commands: typing.Dict[str, CCEntry],
 ) -> str:
     filepath = os.path.abspath(source_filepath)
 
-    directory = os.path.dirname(source_filepath)
+    directory = os.path.dirname(filepath)
     tmp = tempfile.NamedTemporaryFile(suffix='.cpp', dir=directory)
     tmp_name = tmp.name
     tmp.write(include_line.encode())
@@ -647,6 +649,7 @@ def do_handle_single_file(
         if not line.strip():
             continue
         abs_include = include_realpath_cached(
+            filename,
             filename_for_cc, line, compile_commands, realpath_cache,
         )
 
