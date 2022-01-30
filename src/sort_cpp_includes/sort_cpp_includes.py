@@ -351,6 +351,7 @@ DEFAULT_RULES = {
         {'matchers': [{'virtual': '@std-c'}]},
         {'matchers': [{'virtual': '@std-cpp'}]},
         {'matchers': [{'regex': '/usr/include/.*'}]},
+        {'matchers': [{'regex': '.*'}]},
     ],
 }
 
