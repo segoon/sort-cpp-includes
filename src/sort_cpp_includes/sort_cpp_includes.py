@@ -56,7 +56,6 @@ def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
 
 def adjust_cc_command(command: CCEntry) -> typing.List[str]:
     command_items = command.command
-    command_items.remove('')
 
     # Read the code from stdin instead of <some>.cpp
     i = 0
@@ -325,7 +324,7 @@ class MatcherRe(Matcher):
         self.regex = re.compile(regex_str)
 
     def is_match(self, path: str, orig_path: str, my_filename: str) -> bool:
-        return self.regex.full_match(path) is not None
+        return self.regex.fullmatch(path) is not None
 
 
 class MatcherHardcoded(Matcher):
