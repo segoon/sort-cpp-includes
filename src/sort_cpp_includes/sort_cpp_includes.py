@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import typing
+import yaml
 
 
 def read_file_contents(path: str) -> str:
@@ -40,6 +41,8 @@ def command_to_cmdline(command):
 
 
 def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
+    print('Loading compile_commands.json...')
+
     compile_commands_raw = read_file_contents(path)
     compile_commands_json = json.loads(compile_commands_raw)
 
@@ -51,6 +54,8 @@ def read_compile_commands(path: str) -> typing.Dict[str, CCEntry]:
         )
         for entry in compile_commands_json
     }
+
+    print('compile_commands.json is loaded.')
     return compile_commands
 
 
@@ -346,16 +351,7 @@ DEFAULT_RULES = {
         {'matchers': [{'virtual': '@std-c'}]},
         {'matchers': [{'virtual': '@std-cpp'}]},
         {'matchers': [{'regex': '/usr/include/.*'}]},
-        {
-            'matchers': [
-                {'regex': '.*/third_party/.*'},
-                {'regex': '.*/google-benchmark/.*'},
-            ],
-        },
-        {'matchers': [{'regex': '.*/userver/.*'}]},
-        {'matchers': [{'regex': '.*/build/.*'}]},
-        {'matchers': [{'regex': '.*/libraries/.*'}]},
-        {'matchers': [{'regex': '.*/services/.*'}]},
+        {'matchers': [{'regex': '.*'}]},
     ],
 }
 
@@ -435,11 +431,13 @@ def sort_includes(
                 if match:
                     break
             if match:
+                # print(f'write {line}')
                 res[i].append(line)
                 break
 
         if not match:
             raise Exception(f'Include "{line}" doesn\'t match any pattern')
+    # print(res)
 
     for group in res:
         group.sort(key=lambda x: (not x.endswith('.h>'), x))
@@ -477,6 +475,7 @@ class RealpathCache:
 
 # Returns the absolute path of a header from 'include_line'
 def include_realpath_cached(
+        filepath: str,
         source_filepath: str,
         include_line: str,
         compile_commands: typing.Dict[str, CCEntry],
@@ -489,30 +488,32 @@ def include_realpath_cached(
     if entry:
         return entry
 
-    result = include_realpath(source_filepath, include_line, compile_commands)
+    result = include_realpath(filepath, source_filepath, include_line, compile_commands)
     if result:
         realpath_cache.set(key, result)
     return result
 
 
 def include_realpath(
+        filepath: str,
         source_filepath: str,
         include_line: str,
         compile_commands: typing.Dict[str, CCEntry],
 ) -> str:
-    filepath = os.path.abspath(source_filepath)
+    filepath = os.path.abspath(filepath)
+    source_filepath = os.path.abspath(source_filepath)
 
-    directory = os.path.dirname(source_filepath)
+    directory = os.path.dirname(filepath)
     tmp = tempfile.NamedTemporaryFile(suffix='.cpp', dir=directory)
     tmp_name = tmp.name
     tmp.write(include_line.encode())
     tmp.write('\n'.encode())
     tmp.flush()
 
-    command = compile_commands.get(filepath)
+    command = compile_commands.get(source_filepath)
     if not command:
         raise Exception(
-            f'Failed to find "{filepath}" in compile_commands.json',
+            f'Failed to find "{source_filepath}" in compile_commands.json',
         )
     command_items = adjust_cc_command(command) + [tmp_name]
 
@@ -650,6 +651,7 @@ def do_handle_single_file(
         if not line.strip():
             continue
         abs_include = include_realpath_cached(
+            filename,
             filename_for_cc, line, compile_commands, realpath_cache,
         )
 
@@ -672,7 +674,7 @@ def do_handle_single_file(
             ofile.write('#pragma once\n\n')
         write_includes(sorted_includes, ofile)
 
-        for line in orig_file_contents[i:]:
+        for line in orig_file_contents[i + 1 :]:
             ofile.write(line)
             ofile.write('\n')
     os.rename(src=tmp_filename, dst=filename)
@@ -684,7 +686,7 @@ def read_config(filepath: typing.Optional[str]) -> Config:
         return Config(DEFAULT_RULES)
 
     with open(filepath, 'r') as ifile:
-        contents = json.load(ifile)
+        contents = yaml.safe_load(ifile)
         print(f'loaded {filepath} rule set')
         return Config(contents)
 
@@ -703,6 +705,7 @@ def collect_files(
 def collect_all_files(
         paths: typing.List[str], suffixes: typing.List[str],
 ) -> typing.List[str]:
+    print('Collecting input files...')
     headers = []
     for filepath in paths:
         if os.path.isfile(filepath):
@@ -710,6 +713,7 @@ def collect_all_files(
         elif os.path.isdir(filepath):
             for header in collect_files(filepath, suffixes):
                 headers.append(header)
+    print(f'Collected files.')
     return headers
 
 
